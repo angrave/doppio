@@ -49,7 +49,6 @@ THIRD_PARTY_SRCS := vendor/jquery-migrate/jquery-migrate.js \
 	vendor/ace-builds/src/mode-java.js \
 	vendor/ace-builds/src/theme-twilight.js
 
-
 # SCRIPTS
 # the order here is important: must match the order of includes
 # in the browser frontend html.
@@ -101,8 +100,7 @@ NATIVE_CLASSES := $(wildcard src/natives/classes/*.coffee)
 ################################################################################
 # Protect non-file-based targets from not functioning if a file with the
 # target's name is present.
-.PHONY: release benchmark library dist dependencies java test clean docs build dev library
-
+.PHONY: release benchmark dist dependencies java test clean docs build dev library actualtest
 
 # Don't keep this around in the src directory, because it's a generated file.
 .INTERMEDIATE: src/natives.coffee
@@ -165,8 +163,12 @@ $(JRE):
 # Used to test the chosen Java compiler in setup.sh.
 java: $(CLASSES) $(DISASMS) $(RUNOUTS) $(DEMO_CLASSES) $(UTIL_CLASSES) $(LIB_CLASSES)
 
+# Enforce having all the dependencies before running the test cases.
+test: dependencies
+	@make actualtest
+
 # Runs the Java tests in classes/test with the node runner.
-test: dependencies $(TESTS)
+actualtest: $(TESTS)
 	@echo ''
 	@cat classes/test/failures.txt
 	@! test -s classes/test/failures.txt # return 1 if file is nonempty
