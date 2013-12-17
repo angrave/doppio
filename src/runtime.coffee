@@ -96,6 +96,8 @@ class root.RuntimeState
     @thread_pool = []
     @curr_thread = {$meta_stack: new root.CallStack()}
     @max_m_count = 10000
+    @execution_paused = false
+    @paused_state = null
 
   get_bs_cl: -> @bcl
 
@@ -487,6 +489,15 @@ class root.RuntimeState
   # Returns true if the JVM will abort execution in the near future
   is_abort_requested: -> return @abort_requested
 
+  pause: =>
+    @execution_paused = true
+    return
+
+  unpause: =>
+    @execution_paused = false
+    if @paused_state?
+        @paused_state()
+    return
 
   run_until_finished: (setup_fn, no_threads, done_cb) ->
     # Reset stack depth every time this is called. Prevents us from needing to
@@ -495,7 +506,11 @@ class root.RuntimeState
       if @abort_requested
          @abort_requested() if typeof(@abort_requested) == 'function'
          return done_cb(false)
-        
+
+      if @execution_paused
+        @paused_state = @run_until_finished(setup_fn, no_threads, done_cb)
+        return
+
       @stashed_done_cb = done_cb  # hack for the case where we error out of <clinit>
       try
         setup_fn()
@@ -507,11 +522,11 @@ class root.RuntimeState
           m_count--
           sf = @curr_frame()
         if sf.runner? && m_count == 0
-            
+
           if @abort_requested
               @abort_requested() if typeof(@abort_requested) == 'function'
               return done_cb(false)
-            
+
           # Loop has stopped to give the browser some breathing room.
           duration = (new Date()).getTime() - start_time
           # We should yield once every 1-2 seconds or so.
